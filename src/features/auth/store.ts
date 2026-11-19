@@ -24,7 +24,7 @@ export const useAuth = create<AuthState>()(
       setUser: (user) => set({ user }),
       clear: () => set({ token: null, user: null }),
     }),
-    { name: 'dashboard:auth', storage: createJSONStorage(() => localStorage) },
+    { name: 'pft:auth', storage: createJSONStorage(() => localStorage) },
   ),
 )
 

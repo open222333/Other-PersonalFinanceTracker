@@ -1,5 +1,5 @@
 /** 側欄導覽設定：新增頁面 → 在 router.tsx 加路由、在這裡加項目 */
-import { ChartColumn, FolderKanban, LayoutDashboard, Settings, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, Settings, Wallet, type LucideIcon } from 'lucide-react'
 
 import type { User } from '@/api/types'
 
@@ -23,15 +23,19 @@ export interface NavGroup {
 
 export const NAV: NavGroup[] = [
   {
-    label: 'Workspace',
-    items: [
-      { title: '總覽', url: '/dashboard', icon: LayoutDashboard },
-      { title: '圖表', url: '/charts', icon: ChartColumn },
-      { title: '專案', url: '/projects', icon: FolderKanban },
-    ],
+    label: '總覽',
+    items: [{ title: '總覽', url: '/dashboard', icon: LayoutDashboard }],
   },
   {
-    label: 'System',
+    label: '收支',
+    items: [
+      { title: '收支明細', url: '/transactions', icon: ReceiptText },
+      { title: '帳戶', url: '/accounts', icon: Wallet },
+    ],
+  },
+  // M3 起加入「投資」群組（持股、交易、股利），M4 加入「分析」（報表）
+  {
+    label: '系統',
     items: [{ title: '設定', url: '/settings', icon: Settings, auth: true }],
   },
 ]

@@ -1,118 +1,40 @@
-# Template-ReactDashboard
+# Personal Finance Tracker（個人財務管理）
 
 ```
-React 後台 Dashboard 模板
-React + Vite + TypeScript + shadcn/ui：側欄 + 路由 + 資料表格 + 多種圖表 + 訪客瀏覽模式 + API client，內建 mock API，不需後端即可開發
+個人自架的財務管理系統：收入 / 支出 / 轉帳、帳戶與預算、股票投資（交易、持股、損益、股利），彙整成淨資產與報表
 ```
 
-適用：管理後台、內部工具、SaaS Dashboard、公開數據 / 視覺化網站（例如 MEMORA 前端、Template-PythonFlaskAPI / Template-PythonVectorAPI 的管理介面）。
+- 架構、資料模型、API 與開發階段：見 [`CLAUDE.md`](./CLAUDE.md)
+- 前端由 Template-ReactDashboard 模板建立（React + Vite + TypeScript + shadcn/ui）
 
 測試環境：Node 22
 
-## 目錄
+## 目前進度
 
-- [功能](#功能)
-- [技術組合](#技術組合)
-- [目錄結構](#目錄結構)
-- [基於此模板建立新專案](#基於此模板建立新專案)
-- [本機執行](#本機執行)
-- [環境變數](#環境變數)
-- [串接後端](#串接後端)
-- [新增頁面](#新增頁面)
-- [新增資源（CRUD）](#新增資源crud)
-- [資料表格](#資料表格)
-- [圖表](#圖表)
-- [登入與權限](#登入與權限)
-- [訪客模式](#訪客模式)
-- [Docker](#docker)
-- [注意事項](#注意事項)
+| 階段 | 內容 | 狀態 |
+|---|---|---|
+| M0 | 模板改名、關閉訪客模式、移除範例資源 | ✅ |
+| M1 | 帳戶、分類、收支明細、總覽（前端 + mock API） | ✅ |
+| M2 | 後端（FastAPI + PostgreSQL）、前端改接真實 API | 未開始 |
+| M3 | 股票投資：標的、交易、持股、股利 | 未開始 |
+| M4 | 自動報價與匯率、淨資產快照、報表 | 未開始 |
+| M5 | 預算、定期收支、CSV 匯入匯出、備份 | 未開始 |
 
-## 功能
+目前沒有後端，所有資料來自前端內建的 **mock API**（記憶體內，重新整理即重置），內含近 6 個月的範例收支。
 
-- **版面**：可收合側欄（狀態記憶）、手機版抽屜選單、頂欄麵包屑、⌘K 指令面板、淺色 / 深色 / 跟隨系統
-- **訪客模式**（預設開啟）：不登入可瀏覽總覽、圖表、專案列表；新增 / 編輯 / 刪除與設定頁需登入，訪客看到「登入以…」入口，登入後回到原頁
-- **路由**：React Router（data router），頁面 lazy 載入（各自拆 chunk），需登入的頁面自動導向登入頁並帶回原網址，路由錯誤邊界、404
-- **圖表**：Recharts，9 種範例（折線、面積、堆疊長條、環圈、橫向長條、雷達、散佈、漏斗、熱力圖），色盲可辨的固定配色、淺 / 深色各自校正，每張圖可切換成表格檢視
-- **API client**：自動帶 token、query string、逾時、錯誤訊息統一轉換、401 自動登出
-- **後端格式轉換集中在一個檔案**：同時相容 FastAPI（`access_token`、`detail`）與 Template-PythonFlaskAPI（`token`、`message`）
-- **Mock API**：`VITE_API_MOCK=true` 時前端內建假後端（登入、統計、專案 CRUD、權限），正式 build 完全不含 mock 程式碼
-- **資料表格**：伺服器端分頁 / 排序 / 搜尋 / 多選篩選，**狀態同步到網址**；勾選批次刪除、欄位顯示設定、骨架載入、空狀態、錯誤重試
-- **CRUD 範例**：專案列表 + 右側詳細面板（Inspector）+ 新增 / 編輯表單（react-hook-form + Zod，後端 422 錯誤回填欄位）+ 刪除確認
-- **權限**：依角色隱藏導覽項目與操作按鈕（viewer 唯讀）
-- **頁面**：登入、總覽（統計卡片、流量趨勢圖、最近活動）、圖表、專案、設定、404
+## 功能（M1）
 
-## 技術組合
-
-| 用途 | 套件 |
-|---|---|
-| 建置 | Vite、TypeScript |
-| UI | shadcn/ui（Radix）、Tailwind CSS v4、lucide-react、sonner |
-| 路由 | react-router v7 |
-| 伺服器狀態 | @tanstack/react-query v5 |
-| 表格 | @tanstack/react-table v8 |
-| 圖表 | recharts v3 |
-| 表單 | react-hook-form + zod v4 |
-| 用戶端狀態 | zustand（登入、側欄） |
-| 測試 | Vitest、Testing Library、jsdom |
-
-## 目錄結構
-
-```
-Template-ReactDashboard/
-├── docker/
-│   ├── Dockerfile                # node build → nginx
-│   └── nginx.conf.template       # SPA fallback + /api 反向代理（API_UPSTREAM）
-├── src/
-│   ├── api/
-│   │   ├── client.ts             # fetch 包裝、ApiError、configureClient()
-│   │   ├── adapters.ts           # ★ 後端回應格式轉換（串接後端只改這裡）
-│   │   ├── types.ts              # Paginated、ListParams、User、Session
-│   │   └── mock/                 # mock 後端：router、db（假資料）、路由定義
-│   ├── config/
-│   │   ├── env.ts                # VITE_* 環境變數
-│   │   └── nav.ts                # ★ 側欄導覽設定
-│   ├── features/                 # 依功能分：api（React Query hooks）、schema、元件
-│   │   ├── analytics/            # 圖表頁資料（流量、統計摘要）
-│   │   ├── auth/                 # 登入 API、auth store、useSession()、<RequireAuth>
-│   │   ├── dashboard/
-│   │   └── projects/             # CRUD 範例：schema、api、表單、詳細面板、badge
-│   ├── pages/                    # 路由頁面
-│   ├── components/
-│   │   ├── ui/                   # shadcn/ui 元件
-│   │   ├── layout/               # AppLayout、Sidebar、Topbar、CommandMenu
-│   │   ├── charts/               # ChartCard（圖表 / 表格切換）、Tooltip、圖例、熱力圖、配色 theme.ts
-│   │   ├── data-table/           # DataTable、分頁、排序標題、篩選、欄位設定、勾選欄
-│   │   └── common/               # PageHeader、Empty / Error 狀態、ConfirmDialog
-│   ├── hooks/                    # useListParams（網址同步）、useDebouncedValue、useHotkeys
-│   ├── lib/                      # QueryClient、bootstrap、format、cn
-│   ├── router.tsx                # ★ 路由
-│   ├── __tests__/
-│   └── test/                     # 測試 setup、renderApp()
-├── .env.development              # npm run dev 用（預設 mock）
-├── .env.production               # npm run build 用
-├── components.json               # shadcn CLI 設定
-├── docker-compose.yml
-└── vite.config.ts                # @ 別名、/api dev proxy、Vitest
-```
-
-## 基於此模板建立新專案
-
-```bash
-git clone <此模板 URL> your-new-project
-cd your-new-project
-rm -rf .git && git init          # 不保留模板歷史
-npm install
-```
-
-- 修改 `package.json` 的 `name`、`.env.*` 的 `VITE_APP_NAME`
-- 修改 `src/features/auth/store.ts`、`src/components/layout/ui-store.ts` 的 persist `name`（localStorage key），避免與其他專案衝突
-- 用不到的範例：刪除 `features/projects/`、`pages/projects.tsx`，並從 `router.tsx`、`config/nav.ts`、`api/mock/index.ts` 移除
+- **總覽**：淨資產（資產 − 負債）、本月收入 / 支出 / 結餘與上月比較、近 6 個月收支圖、本月支出分類、資產配置、最近收支
+- **收支明細**：收入、支出、轉帳（含跨幣別轉帳）；依期間、類型、帳戶、分類篩選與搜尋（狀態同步到網址）；篩選結果的收支合計；批次刪除、複製一筆、「儲存並新增下一筆」連續記帳
+- **帳戶**：銀行、現金、電子支付、證券交割、信用卡、貸款；餘額由期初餘額 + 收支計算；外幣帳戶以匯率換算到本位幣（TWD）；封存
+- **設定**：收支分類管理（兩層）、外觀、系統資訊
+- **權限**：全站需登入；viewer 唯讀
 
 ## 本機執行
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173，mock 模式帳號 admin / admin（viewer / viewer 為唯讀）
+npm run dev          # http://localhost:5173，mock 帳號 admin / admin（viewer / viewer 為唯讀）
 npm test             # Vitest
 npm run typecheck
 npm run lint         # oxlint
@@ -125,174 +47,95 @@ npm run build        # 輸出 dist/
 
 | 變數 | 說明 | 開發預設 | 正式預設 |
 |---|---|---|---|
-| `VITE_APP_NAME` | 側欄與登入頁顯示名稱 | `Dashboard` | `Dashboard` |
+| `VITE_APP_NAME` | 側欄與登入頁顯示名稱 | `個人財務` | `個人財務` |
 | `VITE_API_BASE_URL` | API 前綴 | `/api/v1` | `/api/v1` |
 | `VITE_API_MOCK` | `true` = 使用前端 mock API | `true` | `false` |
-| `VITE_GUEST_MODE` | `true` = 訪客可瀏覽公開頁面；`false` = 全站需登入 | `true` | `true` |
+| `VITE_GUEST_MODE` | 模板的訪客模式；財務資料屬私密，保持 `false` | `false` | `false` |
 | `VITE_API_TIMEOUT_MS` | 請求逾時 | `15000` | `15000` |
 | `VITE_API_PROXY_TARGET` | 開發時 `/api` 轉發目標（僅 dev server） | `http://localhost:8000` | — |
 
 本機覆寫用 `.env.development.local`（不入版控）。
 
-## 串接後端
+## 目錄結構（前端）
 
-1. `.env.development.local`：
-
-```bash
-VITE_API_MOCK=false
-VITE_API_PROXY_TARGET=http://localhost:8000
+```
+src/
+├── api/
+│   ├── client.ts             # fetch 包裝、ApiError、401 自動登出
+│   ├── adapters.ts           # ★ 後端回應格式轉換（串接後端只改這裡）
+│   └── mock/                 # mock 後端：db（範例資料）、finance（餘額 / 彙總計算）、decimal（整數金額運算）、index（端點）
+├── config/                   # env.ts、nav.ts（側欄）
+├── features/
+│   ├── accounts/             # 帳戶：schema、api hooks、表單
+│   ├── categories/           # 分類：schema、api hooks、分類管理
+│   ├── transactions/         # 收支：schema、api hooks、表單、金額顯示
+│   ├── dashboard/            # 總覽彙總 API
+│   └── auth/                 # 登入、權限
+├── pages/                    # dashboard、transactions、accounts、settings、login、errors
+├── components/               # ui（shadcn）、layout、charts、data-table、common
+├── lib/
+│   ├── money.ts              # 金額顯示與輸入格式（只顯示，不做計算）
+│   ├── date.ts               # 日期、月份、期間預設
+│   ├── form-errors.ts        # 後端 422 錯誤回填表單欄位
+│   └── finance-query.ts      # 財務資料變動後一併 invalidate
+└── router.tsx                # ★ 路由
 ```
 
-2. 確認後端提供以下端點（路徑不同時改 `features/*/api.ts`）：
+## 金額規則
 
-| 方法 | 路徑 | 回應 |
-|---|---|---|
-| `POST` | `/auth/login` | `{ access_token, user }` 或 `{ token, role }` |
-| `GET` | `/auth/me` | `{ id, username, name, email, role }` |
-| `GET` | `/projects?page=&page_size=&q=&sort=&order=&status=` | `{ items, total, page, page_size }` |
-| `GET` / `PATCH` / `DELETE` | `/projects/{id}` | 專案物件 / 204 |
-| `POST` | `/projects`、`/projects/bulk-delete` | 專案物件 / `{ deleted }` |
-| `GET` | `/stats`、`/activity` | 總覽頁資料 |
-| `GET` | `/analytics/traffic?days=` | `{ items: [{ date, visits, visitors, signups }] }` |
-| `GET` | `/analytics/summary` | `{ by_owner, by_priority, effort, latency, radar, heatmap, funnel }`（格式見 `features/analytics/api.ts`） |
+詳見 `CLAUDE.md` §6，重點：
 
-訪客模式下，`GET` 的公開端點（專案列表、統計、圖表）**後端需允許未登入存取**；寫入端點仍需驗證。
+- API 以**字串**傳金額（`"1234.50"`），收支金額一律正數，方向由 `type` 決定
+- **加總、餘額、換算都在後端做**（mock 中以整數單位計算，見 `api/mock/decimal.ts`）；前端只用 `formatMoney()` 顯示
+- 圖表需要數字時用 `chartValue()` 轉換，轉換結果只用於繪圖
 
-3. 回應格式不同時改 `src/api/adapters.ts`：
+## 開發指南
 
-| 函式 | 用途 |
-|---|---|
-| `toListQuery()` | 列表參數 → query string（例如改成 `limit` / `offset`） |
-| `toPaginated()` | 列表回應 → `{ items, total, page, pageSize }` |
-| `toSession()` / `toUser()` | 登入、使用者資料 |
-| `toErrorMessage()` | 錯誤回應 → 顯示文字（支援 FastAPI 422 驗證錯誤陣列） |
-
-串接 Template-PythonFlaskAPI：`VITE_API_BASE_URL` 依其路由前綴調整（例如 `/`），登入回應 `{token, role}` 已相容；其 `/auth/me` 不存在時，移除 `components/layout/app-layout.tsx` 中的 `me` 查詢即可。
-
-## 新增頁面
+### 新增頁面
 
 1. `src/pages/` 建立頁面元件
-2. `src/router.tsx` 加路由（`lazy` 載入），`handle: { crumb: '名稱' }` 會顯示在麵包屑
-   - 放在 `<RequireAuth allowGuest />` 底下 = 訪客可看；放在 `<RequireAuth />` 底下 = 需登入
-3. `src/config/nav.ts` 加側欄項目（`roles` 可限定角色；需登入的頁面加 `auth: true`，訪客會看到鎖頭）
+2. `src/router.tsx` 加路由（`lazy` 載入、`handle: { crumb: '名稱' }`），放在 `<RequireAuth />` 底下
+3. `src/config/nav.ts` 加側欄項目
 
-## 新增資源（CRUD）
+### 新增資源（CRUD）
 
-以 `features/projects/` 為範本：
+以 `features/transactions/` 為範本：
 
 | 檔案 | 內容 |
 |---|---|
-| `schema.ts` | Zod 表單 schema、型別、選項顯示文字 |
-| `api.ts` | query key、`useXxx` / `useSaveXxx` / `useDeleteXxx`（成功後自動 invalidate 與 toast） |
-| `*-form-dialog.tsx` | 新增 / 編輯表單 |
-| `*-detail-sheet.tsx` | 右側詳細面板 |
+| `schema.ts` | 型別、Zod 表單 schema、選項顯示文字、表單 ↔ API 轉換 |
+| `api.ts` | query key、`useXxx` / `useSaveXxx` / `useDeleteXxx`；成功後呼叫 `invalidateFinance()` |
+| `*-form-dialog.tsx` | 新增 / 編輯表單；`applyServerErrors()` 回填後端 422 錯誤 |
 | `pages/*.tsx` | 欄位定義 + DataTable + 工具列 |
-| `api/mock/index.ts` | mock 端點（開發用，可選） |
+| `api/mock/index.ts` | mock 端點（含驗證，格式比照 FastAPI） |
 
-## 資料表格
+### 資料表格
 
-```tsx
-const { params, update, setExtra } = useListParams({ sort: 'updated_at', filters: ['status'] })
-const query = useProjects(params)
+- 列表狀態用 `useListParams()` 同步到網址，例如 `/transactions?type=expense&date_from=2026-11-01&date_to=2026-11-30&sort=amount&order=desc`
+- 篩選或換頁後清除勾選，避免誤刪畫面外的資料
+- 欄位：`ColumnHeader`（排序）、`selectionColumn()`（勾選）、`meta.label`（欄位設定選單名稱）；篩選：`FacetedFilter`（多選，值以逗號分隔）
 
-<DataTable
-  tableId="projects"                     // 欄位顯示設定的儲存 key
-  columns={columns}
-  data={query.data?.items}
-  total={query.data?.total ?? 0}
-  params={params}
-  onParamsChange={update}                // 排序、換頁 → 更新網址 → 重新查詢
-  getRowId={(r) => r.id}
-  isLoading={query.isLoading}
-  isFetching={query.isFetching}
-  error={query.error}
-  onRowClick={(r) => setExtra('selected', r.id)}
-  toolbar={(table) => <ViewOptions table={table} />}
-/>
-```
+### 圖表
 
-- 網址範例：`/projects?q=api&status=active,paused&sort=name&order=asc&page=2&selected=prj_0017`
-- 除換頁外的任何變更都回到第 1 頁；篩選或換頁後清除勾選，避免誤刪畫面外的資料
-- 欄位：`ColumnHeader`（排序）、`selectionColumn()`（勾選）、`meta.label`（欄位設定選單顯示名稱）
-- 篩選：`FacetedFilter`（多選，值以逗號分隔）
+共用元件在 `src/components/charts/`（`ChartCard`、`ChartTooltipContent`、`theme.ts`）：
 
-## 圖表
+- 顏色跟著資料實體走：收入 / 支出 / 轉帳用 `TX_TYPE_COLOR`，帳戶類型用 `ACCOUNT_TYPE_COLOR`，所有圖表一致
+- 不做雙 Y 軸；每張圖提供 `table`（表格檢視）
+- recharts 只在進入總覽頁時下載（lazy 路由）
 
-`src/pages/charts.tsx` 為範例頁，共用元件在 `src/components/charts/`：
+### 登入與權限
 
-```tsx
-<ChartCard
-  title="流量趨勢"
-  legend={[{ label: '瀏覽次數', color: SERIES[0], shape: 'line' }]}
-  isLoading={q.isLoading}
-  error={q.error}
-  table={{ columns: [{ key: 'date', label: '日期' }, { key: 'visits', label: '瀏覽', numeric: true }], rows: q.data ?? [] }}
->
-  <LineChart data={q.data}>
-    <CartesianGrid {...gridProps} />
-    <XAxis dataKey="date" {...axisProps} />
-    <YAxis {...axisProps} />
-    <Tooltip cursor={lineCursor} content={<ChartTooltipContent names={{ visits: '瀏覽次數' }} />} />
-    <Line dataKey="visits" stroke={SERIES[0]} strokeWidth={2} dot={false} />
-  </LineChart>
-</ChartCard>
-```
-
-| 圖表 | 適合 |
-|---|---|
-| 折線 / 面積 | 時間趨勢 |
-| 堆疊長條 | 各類別的組成 |
-| 環圈 | 2–5 個類別的占比 |
-| 橫向長條 | 排名、類別名稱較長 |
-| 雷達 | 多指標比較 2 組 |
-| 散佈 | 兩個數值的關係（最多 3 組） |
-| 漏斗（橫向長條） | 階段轉換 |
-| 熱力圖（CSS grid） | 兩個類別維度 × 數值 |
-
-- 配色：`index.css` 的 `--chart-1..8`（分類，固定順序）與 `--chart-seq-1..7`（連續量）；淺 / 深色各自校正、色盲可辨。顏色跟著資料實體走（例如「進行中」在每張圖都是同一色），第 9 個系列請併入「其他」
-- 不要做雙 Y 軸：量級不同就拆成兩張圖
-- 每張圖都提供 `table`（表格檢視），讓色弱與螢幕閱讀器使用者也能讀到數值
-- recharts 只在進入總覽 / 圖表頁時才下載（lazy 路由）
-
-## 登入與權限
-
-- token 存在 `localStorage`（`dashboard:auth`）；請求自動帶 `Authorization: Bearer`
-- 任何請求回 401 → 清除登入狀態並導向 `/login?redirect=...&expired=1`
-- 登入後只會導向站內相對路徑（防 open redirect）
-- `hasRole(user, 'admin', 'operator')` 控制按鈕顯示；`nav.ts` 的 `roles` 控制選單
-- `useSession()` 取得 `{ user, isGuest, canEdit }`；`useLoginRedirect()` 導向登入並在登入後回到指定網址
-- 登入 / 登出 / 切換帳號時自動清除 React Query 快取，避免前一個身分的資料殘留
-- **前端權限只是 UI**，後端仍必須檢查權限
-
-## 訪客模式
-
-`VITE_GUEST_MODE=true`（預設）時：
-
-| | 訪客（未登入） | viewer | admin / operator |
-|---|---|---|---|
-| 總覽、圖表、專案列表 / 詳細 | ✓ | ✓ | ✓ |
-| 新增 / 編輯 / 刪除專案 | 顯示「登入以…」→ 登入頁 | 隱藏 | ✓ |
-| 設定頁 | 選單帶鎖頭 → 登入頁 | ✓ | ✓ |
-
-- 登入後自動回到原頁（例如「登入以新增專案」→ 登入 → 回到 `/projects?new=1` 並開啟表單）
-- 登出後留在總覽（仍可瀏覽）；token 過期時只清除登入狀態並提示，公開頁不會被踢回登入頁
-- 改成全站需登入：`VITE_GUEST_MODE=false`
-- 調整哪些頁面公開：`router.tsx` 中移動路由到 `<RequireAuth allowGuest />` 或 `<RequireAuth />`，並同步 `nav.ts` 的 `auth`
-- Mock API 以 `createMockTransport({ publicRead })` 模擬後端：`GET` 不需登入，其餘需登入
+- token 存在 `localStorage`（`pft:auth`）；任何請求回 401 → 清除登入狀態並導向登入頁
+- `useSession()` 取得 `{ user, canEdit }`；viewer 的 `canEdit` 為 false
+- 登入 / 登出時清除 React Query 快取
+- **前端權限只是 UI**，後端必須自行檢查
 
 ## Docker
 
 ```bash
 docker compose up -d --build                                  # http://localhost:8080，/api 轉到主機 8000
-API_UPSTREAM=http://api:8000 docker compose up -d --build     # 與後端在同一個 compose
 VITE_API_MOCK=true docker compose up -d --build               # 沒有後端，以 mock 展示
 ```
 
 - `VITE_*` 是**建置參數**（改了要重新 build）；`API_UPSTREAM` 是執行時環境變數
-- nginx 以 `/etc/nginx/templates/` 機制在啟動時替換 `${API_UPSTREAM}`
-
-## 注意事項
-
-- 安全性較高的做法是後端改用 httpOnly cookie：移除 auth store 的 token，client 改用 `credentials: 'include'`
-- 頁面已用 React Router `lazy` 拆分：主 bundle 約 640 KB（gzip 約 200 KB），recharts 約 376 KB 獨立 chunk，只在總覽 / 圖表頁載入
-- `src/components/ui/` 可用 `npx shadcn@latest add <元件>` 新增；`react-hooks/incompatible-library` 對 TanStack Table 的警告已在 `data-table.tsx` 註明忽略
+- 只綁 `127.0.0.1`；對外請經反向代理 + HTTPS

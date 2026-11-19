@@ -9,7 +9,7 @@ interface ThemeState {
 }
 
 const ThemeContext = createContext<ThemeState | null>(null)
-const STORAGE_KEY = 'visual-tool:theme'
+const STORAGE_KEY = 'pft:theme'
 
 function readTheme(): Theme {
   try {

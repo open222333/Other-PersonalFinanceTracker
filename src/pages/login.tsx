@@ -56,7 +56,7 @@ export function LoginPage() {
             {sp.get('expired')
               ? '登入已過期，請重新登入'
               : env.apiMock
-                ? 'Mock 模式：admin / admin、viewer / viewer'
+                ? 'Mock 模式：admin / admin（viewer / viewer 為唯讀）'
                 : env.guestMode
                   ? '登入後可新增、編輯與管理資料'
                   : '請輸入帳號密碼'}

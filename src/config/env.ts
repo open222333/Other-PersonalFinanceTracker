@@ -1,14 +1,14 @@
 /** 環境變數（.env / .env.development / .env.production，VITE_ 前綴才會進前端） */
 export const env = {
-  appName: import.meta.env.VITE_APP_NAME || 'Dashboard',
+  appName: import.meta.env.VITE_APP_NAME || '個人財務',
   /** API 前綴；開發時由 Vite proxy 轉到後端，正式環境由 nginx 轉發 */
   apiBaseUrl: (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, ''),
   /** true = 使用前端內建的 mock API（不需後端） */
   apiMock: import.meta.env.VITE_API_MOCK === 'true',
   /**
-   * true（預設）= 訪客模式：不登入可瀏覽公開頁面（總覽、圖表、專案列表），新增 / 編輯 / 刪除與設定頁需登入。
-   * false = 所有頁面都需登入。
+   * 模板的訪客模式。財務資料屬私密，預設關閉（全站需登入）；只有明確設 VITE_GUEST_MODE=true 才開啟。
+   * 目前所有財務頁面都放在 <RequireAuth /> 底下，開啟也不會公開財務資料。
    */
-  guestMode: import.meta.env.VITE_GUEST_MODE !== 'false',
+  guestMode: import.meta.env.VITE_GUEST_MODE === 'true',
   apiTimeoutMs: Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000),
 }

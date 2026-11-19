@@ -6,7 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { env } from '@/config/env'
+import { useSession } from '@/features/auth/session'
 import { useAuth } from '@/features/auth/store'
+import { CategoryManager } from '@/features/categories/category-manager'
+import { BASE_CURRENCY } from '@/lib/money'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,10 +23,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export function SettingsPage() {
   const user = useAuth((s) => s.user)
   const { theme, setTheme } = useTheme()
+  const { canEdit } = useSession()
   return (
     <>
-      <PageHeader title="設定" description="個人資訊、外觀與連線資訊" />
+      <PageHeader title="設定" description="收支分類、個人資訊、外觀與系統資訊" />
       <div className="grid gap-6 lg:grid-cols-2">
+        <CategoryManager canEdit={canEdit} />
         <Card>
           <CardHeader>
             <CardTitle>個人資訊</CardTitle>
@@ -57,10 +62,11 @@ export function SettingsPage() {
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>連線資訊</CardTitle>
+            <CardTitle>系統資訊</CardTitle>
             <CardDescription>來自 VITE_* 環境變數（建置時決定）</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
+            <Row label="本位幣" value={`${BASE_CURRENCY}（彙總與報表的換算基準）`} />
             <Row label="API Base URL" value={<code>{env.apiBaseUrl}</code>} />
             <Row label="Mock API" value={env.apiMock ? <Badge variant="warning">啟用</Badge> : <Badge variant="secondary">停用</Badge>} />
             <Row label="逾時" value={`${env.apiTimeoutMs} ms`} />

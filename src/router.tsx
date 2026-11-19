@@ -1,12 +1,10 @@
 /**
  * 路由：handle.crumb 會顯示在頂欄麵包屑。新增頁面時同步更新 config/nav.ts。
  *
- * 登入規則（訪客模式 VITE_GUEST_MODE=true 時）：
- * - <RequireAuth allowGuest /> 底下 = 公開頁，未登入可瀏覽（寫入操作在頁面內以 useSession().canEdit 控制）
- * - <RequireAuth />            底下 = 需登入，未登入導向登入頁
- * 關閉訪客模式時兩者都需要登入。
+ * 財務資料屬私密：所有頁面都放在 <RequireAuth /> 底下（未登入導向登入頁並帶回原網址），
+ * 不使用模板的 <RequireAuth allowGuest />。
  *
- * 頁面以 lazy 載入（各自拆成獨立 chunk，例如圖表頁的 recharts 只在進入時下載）。
+ * 頁面以 lazy 載入（各自拆成獨立 chunk，例如總覽的 recharts 只在進入時下載）。
  */
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 
@@ -25,7 +23,7 @@ export const routes: RouteObject[] = [
     hydrateFallbackElement: <PageLoader />,
     children: [
       {
-        element: <RequireAuth allowGuest />,
+        element: <RequireAuth />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           {
@@ -34,26 +32,21 @@ export const routes: RouteObject[] = [
             handle: { crumb: '總覽' },
           },
           {
-            path: 'charts',
-            lazy: () => import('@/pages/charts').then((m) => ({ Component: m.ChartsPage })),
-            handle: { crumb: '圖表' },
+            path: 'transactions',
+            lazy: () => import('@/pages/transactions').then((m) => ({ Component: m.TransactionsPage })),
+            handle: { crumb: '收支明細' },
           },
           {
-            path: 'projects',
-            lazy: () => import('@/pages/projects').then((m) => ({ Component: m.ProjectsPage })),
-            handle: { crumb: '專案' },
+            path: 'accounts',
+            lazy: () => import('@/pages/accounts').then((m) => ({ Component: m.AccountsPage })),
+            handle: { crumb: '帳戶' },
           },
-          { path: '*', element: <NotFoundPage />, handle: { crumb: '找不到頁面' } },
-        ],
-      },
-      {
-        element: <RequireAuth />,
-        children: [
           {
             path: 'settings',
             lazy: () => import('@/pages/settings').then((m) => ({ Component: m.SettingsPage })),
             handle: { crumb: '設定' },
           },
+          { path: '*', element: <NotFoundPage />, handle: { crumb: '找不到頁面' } },
         ],
       },
     ],

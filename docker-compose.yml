@@ -4,12 +4,12 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       args:
-        VITE_APP_NAME: "${VITE_APP_NAME:-Dashboard}"
+        VITE_APP_NAME: "${VITE_APP_NAME:-個人財務}"
         # 沒有後端時設 true，以 mock API 展示
         VITE_API_MOCK: "${VITE_API_MOCK:-false}"
-        # true = 訪客可瀏覽公開頁面；false = 全站需登入
-        VITE_GUEST_MODE: "${VITE_GUEST_MODE:-true}"
-    image: react-dashboard:latest
+        # 財務資料屬私密，保持 false（全站需登入）
+        VITE_GUEST_MODE: "${VITE_GUEST_MODE:-false}"
+    image: personal-finance-tracker-web:latest
     restart: unless-stopped
     environment:
       # 後端位址：同一個 compose 用 service 名稱；主機上的服務用 http://host.docker.internal:8000

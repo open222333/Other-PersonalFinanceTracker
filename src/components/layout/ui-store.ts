@@ -12,6 +12,6 @@ export const useUi = create<UiState>()(
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
     }),
-    { name: 'dashboard:ui' },
+    { name: 'pft:ui' },
   ),
 )

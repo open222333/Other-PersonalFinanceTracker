@@ -25,7 +25,7 @@ export async function bootstrap() {
   // 直接比對 import.meta.env 讓正式 build 完全移除 mock 程式碼
   if (import.meta.env.VITE_API_MOCK === 'true') {
     const { createMockTransport } = await import('@/api/mock') // 正式 build 未啟用時不載入
-    configureClient({ transport: createMockTransport() })
+    configureClient({ transport: createMockTransport({ publicRead: env.guestMode }) })
     console.info('[mock] 使用前端 mock API，登入帳號 admin / admin')
   }
 }
