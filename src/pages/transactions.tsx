@@ -1,6 +1,7 @@
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
-import { Copy, MoreHorizontal, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Copy, FileDown, Loader2, MoreHorizontal, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { PageHeader } from '@/components/common/page-header'
@@ -25,6 +26,7 @@ import { useAccountMap } from '@/features/accounts/api'
 import { useSession } from '@/features/auth/session'
 import { useCategoryMap } from '@/features/categories/api'
 import { categoryOptions, categoryPath } from '@/features/categories/schema'
+import { downloadTransactionsCsv } from '@/features/data/api'
 import { useDeleteTransactions, useTransactions, type FlowSummary } from '@/features/transactions/api'
 import { TX_TYPE_LABEL, TX_TYPES, toForm, type Transaction, type TransactionForm } from '@/features/transactions/schema'
 import { TransactionFormDialog } from '@/features/transactions/transaction-form-dialog'
@@ -33,6 +35,7 @@ import { useDebouncedValue } from '@/hooks/use-debounce'
 import { useListParams } from '@/hooks/use-list-params'
 import { formatDay, matchPreset, PERIOD_PRESETS, todayYmd } from '@/lib/date'
 import { BASE_CURRENCY, formatMoney } from '@/lib/money'
+import { errorMessage } from '@/lib/query'
 
 const FILTERS = ['type', 'account_id', 'category_id', 'date_from', 'date_to']
 const typeOptions = TX_TYPES.map((t) => ({ value: t, label: TX_TYPE_LABEL[t] }))
@@ -79,6 +82,17 @@ export function TransactionsPage() {
   const [formOpen, setFormOpen] = useState(canEdit && searchParams.get('new') === '1')
   const [toDelete, setToDelete] = useState<Transaction[] | null>(null)
   const [customPeriod, setCustomPeriod] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const exportCsv = async () => {
+    setExporting(true)
+    try {
+      await downloadTransactionsCsv(params)
+    } catch (e) {
+      toast.error(errorMessage(e))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => setSelection({}), [params])
 
@@ -235,11 +249,16 @@ export function TransactionsPage() {
         title="收支明細"
         description="收入、支出與帳戶間轉帳"
         actions={
-          canEdit && (
-            <Button onClick={() => openCreate()}>
-              <Plus /> 記一筆
+          <>
+            <Button variant="outline" onClick={exportCsv} disabled={exporting || !query.data?.total} title="依目前的篩選條件匯出（不分頁）">
+              {exporting ? <Loader2 className="animate-spin" /> : <FileDown />} 匯出 CSV
             </Button>
-          )
+            {canEdit && (
+              <Button onClick={() => openCreate()}>
+                <Plus /> 記一筆
+              </Button>
+            )}
+          </>
         }
       />
 

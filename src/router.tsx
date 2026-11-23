@@ -42,6 +42,11 @@ export const routes: RouteObject[] = [
             handle: { crumb: '帳戶' },
           },
           {
+            path: 'data',
+            lazy: () => import('@/pages/data').then((m) => ({ Component: m.DataPage })),
+            handle: { crumb: '匯入匯出' },
+          },
+          {
             path: 'settings',
             lazy: () => import('@/pages/settings').then((m) => ({ Component: m.SettingsPage })),
             handle: { crumb: '設定' },

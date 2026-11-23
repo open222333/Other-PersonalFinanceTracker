@@ -18,7 +18,8 @@
 | M2 | 後端（FastAPI + PostgreSQL）、前端改接真實 API | 未開始 |
 | M3 | 股票投資：標的、交易、持股、股利 | 未開始 |
 | M4 | 自動報價與匯率、淨資產快照、報表 | 未開始 |
-| M5 | 預算、定期收支、CSV 匯入匯出、備份 | 未開始 |
+| — | 匯入匯出：收支 CSV、完整備份 JSON（原屬 M5，提前完成） | ✅ |
+| M5 | 預算、定期收支、資料庫備份 | 未開始 |
 
 目前沒有後端，所有資料來自前端內建的 **mock API**（記憶體內，重新整理即重置），內含近 6 個月的範例收支。
 
@@ -27,6 +28,7 @@
 - **總覽**：淨資產（資產 − 負債）、本月收入 / 支出 / 結餘與上月比較、近 6 個月收支圖、本月支出分類、資產配置、最近收支
 - **收支明細**：收入、支出、轉帳（含跨幣別轉帳）；依期間、類型、帳戶、分類篩選與搜尋（狀態同步到網址）；篩選結果的收支合計；批次刪除、複製一筆、「儲存並新增下一筆」連續記帳
 - **帳戶**：銀行、現金、電子支付、證券交割、信用卡、貸款；餘額由期初餘額 + 收支計算；外幣帳戶以匯率換算到本位幣（TWD）；封存
+- **匯入匯出**：收支 CSV 匯入（UTF-8 / Big5 自動判斷，先預覽逐列檢查、略過重複、可自動建立分類）與匯出；完整備份 JSON 下載與還原。格式見 [`docs/data-format.md`](./docs/data-format.md)，範例檔 [`docs/samples/transactions-sample.csv`](./docs/samples/transactions-sample.csv)
 - **設定**：收支分類管理（兩層）、外觀、系統資訊
 - **權限**：全站需登入；viewer 唯讀
 
@@ -63,20 +65,22 @@ src/
 ├── api/
 │   ├── client.ts             # fetch 包裝、ApiError、401 自動登出
 │   ├── adapters.ts           # ★ 後端回應格式轉換（串接後端只改這裡）
-│   └── mock/                 # mock 後端：db（範例資料）、finance（餘額 / 彙總計算）、decimal（整數金額運算）、index（端點）
+│   └── mock/                 # mock 後端：db（範例資料）、finance（餘額 / 彙總）、decimal（整數金額運算）、validate（驗證）、query（收支篩選）、data-io（匯入匯出）、index（端點）
 ├── config/                   # env.ts、nav.ts（側欄）
 ├── features/
 │   ├── accounts/             # 帳戶：schema、api hooks、表單
 │   ├── categories/           # 分類：schema、api hooks、分類管理
 │   ├── transactions/         # 收支：schema、api hooks、表單、金額顯示
 │   ├── dashboard/            # 總覽彙總 API
+│   ├── data/                 # 匯入匯出：format.ts（★ CSV 欄位規格）、api
 │   └── auth/                 # 登入、權限
-├── pages/                    # dashboard、transactions、accounts、settings、login、errors
+├── pages/                    # dashboard、transactions、accounts、data、settings、login、errors
 ├── components/               # ui（shadcn）、layout、charts、data-table、common
 ├── lib/
 │   ├── money.ts              # 金額顯示與輸入格式（只顯示，不做計算）
 │   ├── date.ts               # 日期、月份、期間預設
 │   ├── form-errors.ts        # 後端 422 錯誤回填表單欄位
+│   ├── csv.ts / file.ts      # CSV 讀寫、檔案讀取（UTF-8 / Big5）與下載
 │   └── finance-query.ts      # 財務資料變動後一併 invalidate
 └── router.tsx                # ★ 路由
 ```

@@ -8,7 +8,7 @@ export interface MockRequest {
   headers: Headers
 }
 
-export type MockResult = { status?: number; body?: unknown } | undefined
+export type MockResult = { status?: number; body?: unknown; contentType?: string } | undefined
 type Handler = (req: MockRequest) => MockResult | Promise<MockResult>
 
 interface Route {
@@ -43,4 +43,6 @@ export class MockRouter {
 }
 
 export const json = (body: unknown, status = 200): MockResult => ({ status, body })
+/** 非 JSON 回應（例如 CSV 下載） */
+export const text = (body: string, contentType: string, status = 200): MockResult => ({ status, body, contentType })
 export const error = (status: number, detail: string): MockResult => ({ status, body: { detail } })

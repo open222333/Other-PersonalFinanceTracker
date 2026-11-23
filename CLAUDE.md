@@ -10,6 +10,7 @@
 ## 1. 目前狀態
 
 - **M0、M1 已完成**（前端 + mock API）：帳戶、分類、收支明細、總覽、分類管理。進度表見 `README.md`。
+- **匯入匯出已完成**（原屬 M5，提前實作）：收支 CSV 匯入（預覽 → 寫入）/ 匯出、完整備份 JSON 匯出 / 還原。格式規格見 `docs/data-format.md`。
 - 尚無後端與資料庫：資料來自 `src/api/mock/`（記憶體內，重新整理即重置）。mock 的端點、驗證與回應格式就是 M2 後端要實作的規格。
 - 模板的範例資源（projects、analytics、charts 頁）已移除；模板的訪客模式程式碼保留但關閉，所有頁面都在 `<RequireAuth />` 底下。
 
@@ -89,7 +90,7 @@ Other-PersonalFinanceTracker/
 | 報價與匯率 | 每日收盤價、匯率；自動抓取，並允許手動輸入 |
 | 總覽 | 淨資產、本月收入 / 支出 / 結餘、資產配置、淨資產趨勢、最近收支 |
 | 報表 | 月收支趨勢、分類占比、現金流、投資績效、股利收入 |
-| 匯入匯出 | CSV 匯入（銀行 / 券商對帳單）、全量匯出、資料庫備份 |
+| 匯入匯出 | 收支 CSV 匯入（先預覽、逐列檢查、略過重複）/ 匯出、完整備份 JSON 匯出 / 還原、資料庫備份（`pg_dump`）。格式見 `docs/data-format.md` |
 
 ## 5. 資料模型
 
@@ -155,7 +156,7 @@ net_worth_snapshots date, account_id | asset_class, value_in_base_currency
 | 匯率 | `GET /fx-rates`、`PUT /fx-rates` |
 | 總覽 | `GET /dashboard/summary?month=YYYY-MM`（淨資產、本月與上月收支、近 6 月收支、本月支出分類、資產配置、使用中的匯率） |
 | 報表 | `GET /reports/cashflow`、`/reports/categories`、`/reports/net-worth`、`/reports/investments`、`/reports/dividends` |
-| 匯入匯出 | `POST /import/transactions`、`POST /import/trades`、`GET /export` |
+| 匯入匯出 | `GET /export/transactions`（CSV，篩選同收支列表）、`GET /export/backup`（JSON）、`POST /import/transactions`（`dry_run` 預覽）、`POST /import/backup`（`dry_run` 預覽，確認後取代全部）；M3 加 `POST /import/trades`。格式與回應見 `docs/data-format.md` |
 
 ## 8. 前端頁面與導覽
 
@@ -169,9 +170,10 @@ net_worth_snapshots date, account_id | asset_class, value_in_base_currency
 | `/investments/trades` | 交易紀錄 | DataTable CRUD |
 | `/investments/dividends` | 股利 | DataTable CRUD、年度股利統計 |
 | `/reports` | 報表 | 由模板 `charts` 改寫 |
-| `/settings` | 設定 | 分類管理、定期收支、本位幣、匯入匯出 |
+| `/data` | 匯入匯出 | 匯出 CSV / 備份、匯入 CSV（預覽表）、還原備份 |
+| `/settings` | 設定 | 分類管理、定期收支、本位幣 |
 
-側欄分組（`src/config/nav.ts`）：**總覽**／**收支**（明細、帳戶、預算）／**投資**（持股、交易、股利）／**分析**（報表）／**系統**（設定）。
+側欄分組（`src/config/nav.ts`）：**總覽**／**收支**（明細、帳戶、預算）／**投資**（持股、交易、股利）／**分析**（報表）／**系統**（匯入匯出、設定）。
 
 ## 9. 排程與外部資料
 
@@ -192,7 +194,8 @@ net_worth_snapshots date, account_id | asset_class, value_in_base_currency
 - 密碼以 argon2 / bcrypt 雜湊；JWT 密鑰、資料庫密碼放 `.env`（已在 `.gitignore`），**不可提交**。`.env.development` / `.env.production` 只放非機密的 `VITE_*`。
 - 前端權限只是 UI，後端必須自行檢查。
 - 之後可改為 httpOnly cookie（做法見 `README.md` 注意事項）。
-- 定期 `pg_dump` 備份；提供全量匯出，確保資料可攜。
+- 定期 `pg_dump` 備份；提供全量匯出（備份 JSON），確保資料可攜。
+- 匯入一律先 `dry_run` 預覽，正式匯入在副本 / DB transaction 中完成，失敗不留下部分資料；匯出 CSV 需防公式注入（見 `docs/data-format.md`）。
 - 測試與 mock 只使用假資料，不放入真實帳號或金額。
 
 ## 11. 待確認決策
@@ -216,7 +219,7 @@ net_worth_snapshots date, account_id | asset_class, value_in_base_currency
 | M2 | 後端骨架：FastAPI、資料庫遷移、登入；帳戶 / 分類 / 收支 API；前端改接真實後端；compose 加入 `api`、`db` |
 | M3 | 投資：標的、交易、持股計算、股利、手動報價 |
 | M4 | 自動報價與匯率、淨資產快照、報表 |
-| M5 | 預算、定期收支、CSV 匯入匯出、備份 |
+| M5 | 預算、定期收支、資料庫備份（匯入匯出已提前完成） |
 
 每個階段先更新 mock（`src/api/mock/`）與型別，再實作後端，確保前端可獨立開發。
 

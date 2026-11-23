@@ -6,135 +6,19 @@
  * publicRead=true 時 GET 不需登入（只為相容模板的訪客模式，財務資料預設不公開）。
  */
 import type { Transport } from '../client'
-import {
-  createDb,
-  type AccountRecord,
-  type AccountType,
-  type CategoryKind,
-  type CategoryRecord,
-  type MockDb,
-  type TransactionRecord,
-  type TxType,
-} from './db'
-import { fromUnits, normalize, toUnits } from './decimal'
+import { createDb, type AccountRecord, type CategoryRecord, type TransactionRecord } from './db'
+import { fromUnits } from './decimal'
 import { accountBalances, dashboardSummary, flowSummary, transactionCounts } from './finance'
-import { MockRouter, error, json, type MockResult } from './router'
+import { exportBackup, exportTransactionsCsv, ImportError, importTransactionsCsv, restoreBackup } from './data-io'
+import { queryTransactions } from './query'
+import { MockRouter, error, json, text } from './router'
+import { invalid, now, validateAccount, validateCategory, validateTransaction, type Body } from './validate'
 
 const TOKEN_PREFIX = 'mock-token:'
-const ACCOUNT_TYPES: AccountType[] = ['cash', 'bank', 'credit_card', 'e_wallet', 'brokerage', 'loan']
-const CURRENCIES = ['TWD', 'USD', 'JPY', 'EUR', 'HKD', 'CNY']
-const TX_TYPES: TxType[] = ['expense', 'income', 'transfer']
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-type Body = Record<string, unknown>
-type FieldErrors = { field: string; msg: string }[]
-
-const invalid = (errors: FieldErrors): MockResult =>
-  json({ detail: errors.map((e) => ({ loc: ['body', e.field], msg: e.msg, type: 'value_error' })) }, 422)
-const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
-const now = () => new Date().toISOString()
-
 function paginate<T>(rows: T[], query: URLSearchParams, extra: Body = {}) {
   const page = Math.max(1, Number(query.get('page') ?? 1))
   const pageSize = Math.min(100, Math.max(1, Number(query.get('page_size') ?? 20)))
   return json({ items: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize, ...extra })
-}
-
-// ── 驗證（真實後端以 Pydantic 處理）──
-
-function validateAccount(db: MockDb, b: Body, current?: AccountRecord) {
-  const errors: FieldErrors = []
-  const name = str(b.name)
-  if (!name) errors.push({ field: 'name', msg: '請輸入名稱' })
-  else if (db.accounts.some((a) => a.name === name && a.id !== current?.id)) errors.push({ field: 'name', msg: '名稱已存在' })
-  if (!ACCOUNT_TYPES.includes(b.type as AccountType)) errors.push({ field: 'type', msg: '類型不正確' })
-  if (!CURRENCIES.includes(b.currency as string)) errors.push({ field: 'currency', msg: '不支援的幣別' })
-  else if (current && b.currency !== current.currency && transactionCounts(db, 'account').get(current.id))
-    errors.push({ field: 'currency', msg: '已有收支的帳戶不可變更幣別' })
-  const opening = normalize(b.opening_balance as string, { allowNegative: true, allowZero: true })
-  if (opening === null) errors.push({ field: 'opening_balance', msg: '請輸入金額，最多兩位小數' })
-  if (errors.length) return { errors }
-  return {
-    value: {
-      name,
-      type: b.type as AccountType,
-      currency: b.currency as string,
-      opening_balance: opening!,
-      note: str(b.note),
-      is_archived: !!b.is_archived,
-    },
-  }
-}
-
-function validateCategory(db: MockDb, b: Body, current?: CategoryRecord) {
-  const errors: FieldErrors = []
-  const name = str(b.name)
-  const kind = (current?.kind ?? b.kind) as CategoryKind
-  const parentId = (b.parent_id as string | null) || null
-  if (kind !== 'income' && kind !== 'expense') errors.push({ field: 'kind', msg: '類型不正確' })
-  if (parentId) {
-    const parent = db.categories.find((c) => c.id === parentId)
-    if (!parent || parent.kind !== kind) errors.push({ field: 'parent_id', msg: '上層分類不正確' })
-    else if (parent.parent_id) errors.push({ field: 'parent_id', msg: '分類最多兩層' })
-    else if (current && (parent.id === current.id || db.categories.some((c) => c.parent_id === current.id)))
-      errors.push({ field: 'parent_id', msg: '有子分類的分類不可再移到其他分類底下' })
-  }
-  if (!name) errors.push({ field: 'name', msg: '請輸入名稱' })
-  else if (db.categories.some((c) => c.name === name && c.kind === kind && c.parent_id === parentId && c.id !== current?.id))
-    errors.push({ field: 'name', msg: '同一層已有相同名稱' })
-  if (errors.length) return { errors }
-  return { value: { name, kind, parent_id: parentId } }
-}
-
-function validateTransaction(db: MockDb, b: Body, current?: TransactionRecord) {
-  const errors: FieldErrors = []
-  const type = b.type as TxType
-  const account = db.accounts.find((a) => a.id === b.account_id)
-  const date = str(b.date)
-  if (!DATE_RE.test(date)) errors.push({ field: 'date', msg: '日期格式需為 YYYY-MM-DD' })
-  if (!TX_TYPES.includes(type)) errors.push({ field: 'type', msg: '類型不正確' })
-  if (!account) errors.push({ field: 'account_id', msg: '請選擇帳戶' })
-  else if (account.is_archived && account.id !== current?.account_id) errors.push({ field: 'account_id', msg: '帳戶已封存' })
-  const amount = normalize(b.amount as string)
-  if (amount === null) errors.push({ field: 'amount', msg: '金額需大於 0，最多兩位小數' })
-
-  let category_id: string | null = null
-  let to_account_id: string | null = null
-  let to_amount: string | null = null
-  if (type === 'transfer') {
-    const to = db.accounts.find((a) => a.id === b.to_account_id)
-    if (!to) errors.push({ field: 'to_account_id', msg: '請選擇轉入帳戶' })
-    else if (to.id === account?.id) errors.push({ field: 'to_account_id', msg: '轉出與轉入帳戶不可相同' })
-    else if (to.is_archived && to.id !== current?.to_account_id) errors.push({ field: 'to_account_id', msg: '帳戶已封存' })
-    else {
-      to_account_id = to.id
-      if (account && account.currency !== to.currency) {
-        to_amount = normalize(b.to_amount as string)
-        if (to_amount === null) errors.push({ field: 'to_amount', msg: `跨幣別轉帳請輸入轉入金額（${to.currency}）` })
-      }
-    }
-  } else if (TX_TYPES.includes(type)) {
-    const category = db.categories.find((c) => c.id === b.category_id)
-    if (!category) errors.push({ field: 'category_id', msg: '請選擇分類' })
-    else if (category.kind !== type) errors.push({ field: 'category_id', msg: `請選擇${type === 'income' ? '收入' : '支出'}分類` })
-    else category_id = category.id
-  }
-  const tags = Array.isArray(b.tags) ? [...new Set(b.tags.map(str).filter(Boolean))] : []
-  if (errors.length) return { errors }
-  return {
-    value: {
-      date,
-      type,
-      account_id: account!.id,
-      amount: amount!,
-      category_id,
-      to_account_id,
-      to_amount,
-      payee: str(b.payee),
-      note: str(b.note),
-      tags,
-    },
-  }
 }
 
 export function createMockTransport({ latencyMs = 300, db = createDb(), publicRead = false } = {}): Transport {
@@ -248,39 +132,7 @@ export function createMockTransport({ latencyMs = 300, db = createDb(), publicRe
 
   // ── transactions（q / type / account_id / category_id / date_from / date_to / sort / order / page / page_size）──
   router.on('GET', '/transactions', ({ query }) => {
-    let rows = [...db.transactions]
-    const list = (key: string) => query.get(key)?.split(',').filter(Boolean) ?? []
-    const types = list('type')
-    if (types.length) rows = rows.filter((t) => types.includes(t.type))
-    const accounts = list('account_id')
-    if (accounts.length) rows = rows.filter((t) => accounts.includes(t.account_id) || (!!t.to_account_id && accounts.includes(t.to_account_id)))
-    const cats = list('category_id')
-    if (cats.length) {
-      // 選上層分類時包含其子分類
-      const ids = new Set(cats.flatMap((id) => [id, ...db.categories.filter((c) => c.parent_id === id).map((c) => c.id)]))
-      rows = rows.filter((t) => t.category_id && ids.has(t.category_id))
-    }
-    const from = query.get('date_from')
-    const to = query.get('date_to')
-    if (from) rows = rows.filter((t) => t.date >= from)
-    if (to) rows = rows.filter((t) => t.date <= to)
-    const q = query.get('q')?.trim().toLowerCase()
-    if (q) {
-      const catName = new Map(db.categories.map((c) => [c.id, c.name.toLowerCase()]))
-      rows = rows.filter(
-        (t) =>
-          t.payee.toLowerCase().includes(q) ||
-          t.note.toLowerCase().includes(q) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-          (!!t.category_id && !!catName.get(t.category_id)?.includes(q)),
-      )
-    }
-    const dir = query.get('order') === 'asc' ? 1 : -1
-    const sort = query.get('sort') === 'amount' ? 'amount' : 'date'
-    rows.sort((a, b) => {
-      const primary = sort === 'amount' ? toUnits(a.amount) - toUnits(b.amount) : a.date.localeCompare(b.date)
-      return (primary || a.created_at.localeCompare(b.created_at)) * dir
-    })
+    const rows = queryTransactions(db, query)
     return paginate(rows, query, { summary: flowSummary(db, rows) })
   })
   router.on('GET', '/transactions/:id', ({ params }) => {
@@ -317,6 +169,39 @@ export function createMockTransport({ latencyMs = 300, db = createDb(), publicRe
     return json({ deleted: before - db.transactions.length })
   })
 
+  // ── 匯入匯出（格式見 docs/data-format.md）──
+  router.on('GET', '/export/transactions', ({ query }) =>
+    text(exportTransactionsCsv(db, queryTransactions(db, query)), 'text/csv; charset=utf-8'),
+  )
+  router.on('GET', '/export/backup', () => json(exportBackup(db)))
+  router.on('POST', '/import/transactions', ({ body, headers }) => {
+    if (readOnly(headers)) return FORBIDDEN
+    const b = (body ?? {}) as Body
+    if (typeof b.content !== 'string') return error(422, '請提供 CSV 內容（content）')
+    try {
+      return json(
+        importTransactionsCsv(db, b.content, {
+          dryRun: b.dry_run !== false,
+          skipDuplicates: b.skip_duplicates !== false,
+          createCategories: b.create_categories !== false,
+        }),
+      )
+    } catch (e) {
+      if (e instanceof ImportError) return error(422, e.message)
+      throw e
+    }
+  })
+  router.on('POST', '/import/backup', ({ body, headers }) => {
+    if (readOnly(headers)) return FORBIDDEN
+    const b = (body ?? {}) as Body
+    try {
+      return json(restoreBackup(db, b.backup, { dryRun: b.dry_run !== false }))
+    } catch (e) {
+      if (e instanceof ImportError) return error(422, e.message)
+      throw e
+    }
+  })
+
   // ── dashboard ──
   router.on('GET', '/dashboard/summary', ({ query }) => {
     const month = query.get('month') ?? undefined
@@ -345,6 +230,7 @@ export function createMockTransport({ latencyMs = 300, db = createDb(), publicRe
     }
     const res = await router.handle(method, path, url.searchParams, body, headers)
     const status = res?.status ?? 200
+    if (res?.contentType) return new Response(String(res.body ?? ''), { status, headers: { 'content-type': res.contentType } })
     return new Response(status === 204 || res?.body === undefined ? null : JSON.stringify(res.body), {
       status,
       headers: { 'content-type': 'application/json' },

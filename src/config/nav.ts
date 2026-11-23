@@ -1,5 +1,5 @@
 /** 側欄導覽設定：新增頁面 → 在 router.tsx 加路由、在這裡加項目 */
-import { LayoutDashboard, ReceiptText, Settings, Wallet, type LucideIcon } from 'lucide-react'
+import { ArrowDownUp, LayoutDashboard, ReceiptText, Settings, Wallet, type LucideIcon } from 'lucide-react'
 
 import type { User } from '@/api/types'
 
@@ -36,7 +36,10 @@ export const NAV: NavGroup[] = [
   // M3 起加入「投資」群組（持股、交易、股利），M4 加入「分析」（報表）
   {
     label: '系統',
-    items: [{ title: '設定', url: '/settings', icon: Settings, auth: true }],
+    items: [
+      { title: '匯入匯出', url: '/data', icon: ArrowDownUp },
+      { title: '設定', url: '/settings', icon: Settings, auth: true },
+    ],
   },
 ]
 
