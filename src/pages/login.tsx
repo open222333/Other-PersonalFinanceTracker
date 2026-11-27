@@ -33,7 +33,7 @@ export function LoginPage() {
 
   const form = useForm({
     resolver: zodResolver(schema),
-    defaultValues: env.apiMock ? { username: 'admin', password: 'admin' } : { username: '', password: '' },
+    defaultValues: { username: '', password: '' },
   })
   const mutation = useMutation({
     meta: { silent: true },
@@ -55,9 +55,7 @@ export function LoginPage() {
           <CardDescription>
             {sp.get('expired')
               ? '登入已過期，請重新登入'
-              : env.apiMock
-                ? 'Mock 模式：admin / admin（viewer / viewer 為唯讀）'
-                : env.guestMode
+              : env.guestMode
                   ? '登入後可新增、編輯與管理資料'
                   : '請輸入帳號密碼'}
           </CardDescription>

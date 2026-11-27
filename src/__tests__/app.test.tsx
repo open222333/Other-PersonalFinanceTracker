@@ -16,20 +16,25 @@ describe('auth', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
     expect(screen.queryByRole('link', { name: '先以訪客身分瀏覽' })).not.toBeInTheDocument()
 
-    await userEvent.click(await screen.findByRole('button', { name: '登入' })) // mock 模式預填 admin / admin
-    await waitFor(() => expect(router.state.location.pathname).toBe('/transactions'))
+    await userEvent.type(await screen.findByLabelText('帳號'), 'admin')
+    await userEvent.type(screen.getByLabelText('密碼'), 'admin')
+    await userEvent.click(screen.getByRole('button', { name: '登入' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/transactions'), { timeout: 3000 })
     expect(router.state.location.search).toBe('?type=income')
 
-    const table = await screen.findByRole('table')
+    const table = await screen.findByRole('table', {}, { timeout: 5000 }) // 首次載入 lazy 路由
     await waitFor(() => expect(within(table).getAllByText('收入').length).toBeGreaterThan(0))
     expect(within(table).queryByText('支出')).not.toBeInTheDocument()
   })
 
   it('shows login error for wrong password', async () => {
     renderApp('/login')
-    const pw = await screen.findByLabelText('密碼')
-    await userEvent.clear(pw)
-    await userEvent.type(pw, 'wrong')
+    // 登入頁不顯示、也不預填任何帳密
+    expect(await screen.findByLabelText('帳號')).toHaveValue('')
+    expect(screen.getByLabelText('密碼')).toHaveValue('')
+    expect(screen.queryByText(/admin/)).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('帳號'), 'admin')
+    await userEvent.type(screen.getByLabelText('密碼'), 'wrong')
     await userEvent.click(screen.getByRole('button', { name: '登入' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('帳號或密碼錯誤')
   })

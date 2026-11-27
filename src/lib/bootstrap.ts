@@ -26,6 +26,6 @@ export async function bootstrap() {
   if (import.meta.env.VITE_API_MOCK === 'true') {
     const { createMockTransport } = await import('@/api/mock') // 正式 build 未啟用時不載入
     configureClient({ transport: createMockTransport({ publicRead: env.guestMode }) })
-    console.info('[mock] 使用前端 mock API，登入帳號 admin / admin')
+    console.info('[mock] 使用前端 mock API（測試帳號見 README）')
   }
 }

@@ -23,6 +23,8 @@
 
 目前沒有後端，所有資料來自前端內建的 **mock API**（記憶體內，重新整理即重置），內含近 6 個月的範例收支。
 
+mock 模式的測試帳號（只存在於 `src/api/mock/db.ts`，登入頁不會顯示）：`admin` / `admin`（可編輯）、`viewer` / `viewer`（唯讀）。接上真實後端後由後端管理帳號。
+
 ## 功能（M1）
 
 - **總覽**：淨資產（資產 − 負債）、本月收入 / 支出 / 結餘與上月比較、近 6 個月收支圖、本月支出分類、資產配置、最近收支
@@ -36,7 +38,7 @@
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173，mock 帳號 admin / admin（viewer / viewer 為唯讀）
+npm run dev          # http://localhost:5173
 npm test             # Vitest
 npm run typecheck
 npm run lint         # oxlint
